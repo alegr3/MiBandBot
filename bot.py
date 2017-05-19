@@ -21,9 +21,9 @@ import flask
 import telebot
 import logging
 
-API_TOKEN = '' # Telegram Bot's Token (change this value for your own token)
+API_TOKEN = '' # Telegram Bot's Token (fill this value with your own token)
 
-WEBHOOK_HOST = '' # Same FQDN used to generate SSL certificates
+WEBHOOK_HOST = '' # Fill with a the Server FQDN that is the same FQDN used to generate SSL certificates
 WEBHOOK_PORT = 8443  # 443, 80, 88 or 8443 (port need to be 'open')
 # In some VPS you may need to put here the IP addr
 WEBHOOK_LISTEN = '0.0.0.0' # Change to 0.0.0.0 in Virtual Machines
@@ -152,11 +152,12 @@ def generateImageFromKibana(chat_id, startTimestamp, endTimestamp, jsFile):
     chat_id = "pacient/" + str(chat_id)
     print chat_id
     url = re.escape("http://" + ip + "/app/kibana#/dashboard/Mi-Band-Dashboard?_g=(refreshInterval:(display:Off,pause:!f,value:0),time:(from:'" + str(startTimestamp) + "',mode:quick,to:'" + str(endTimestamp) + "'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:tbot_test,key:subject,negate:!f,value:'" + str(chat_id) + "'),query:(match:(subject:(query:" + str(chat_id) + ",type:phrase))))),options:(darkTheme:!f),panels:!((col:1,id:Mi-Band-Pasos,panelIndex:1,row:1,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Calorias,panelIndex:2,row:5,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Actividad,panelIndex:3,row:9,size_x:12,size_y:4,type:visualization)),query:(query_string:(analyze_wildcard:!t,query:'*')),title:'Mi%20Band%20Dashboard',uiState:(P-1:(vis:(legendOpen:!f)),P-2:(vis:(legendOpen:!f)),P-3:(vis:(legendOpen:!f))),vis:(aggs:!((params:(field:chat_id,orderBy:'2',size:20),schema:segment,type:terms),(id:'2',schema:metric,type:count)),type:histogram))&indexPattern=tbot_test&type=histogram")
-    #print url
+    string_url = "http://" + ip + "/app/kibana#/dashboard/Mi-Band-Dashboard?_g=(refreshInterval:(display:Off,pause:!f,value:0),time:(from:'" + str(startTimestamp) + "',mode:quick,to:'" + str(endTimestamp) + "'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:tbot_test,key:subject,negate:!f,value:'" + str(chat_id) + "'),query:(match:(subject:(query:" + str(chat_id) + ",type:phrase))))),options:(darkTheme:!f),panels:!((col:1,id:Mi-Band-Pasos,panelIndex:1,row:1,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Calorias,panelIndex:2,row:5,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Actividad,panelIndex:3,row:9,size_x:12,size_y:4,type:visualization)),query:(query_string:(analyze_wildcard:!t,query:'*')),title:'Mi%20Band%20Dashboard',uiState:(P-1:(vis:(legendOpen:!f)),P-2:(vis:(legendOpen:!f)),P-3:(vis:(legendOpen:!f))),vis:(aggs:!((params:(field:chat_id,orderBy:'2',size:20),schema:segment,type:terms),(id:'2',schema:metric,type:count)),type:histogram))&indexPattern=tbot_test&type=histogram"
     phamtonjs = 'phantomjs ' +jsFile+ ' ' + url
     #print phamtonjs
     os.system(phamtonjs)
     print "imagen generada"
+    return string_url
 
 # Calculate the time difference between two timestamps
 def diff_time(startTimeDate, endTimeDate):
@@ -257,9 +258,13 @@ def steps(cid, daysPeriod):
                                          'pasos',
                                          step_count,
                                          duration)
-                text = text +  "<b>Pasos totales %s: %d</b>" %(text_totales, totalSteps)
+                url = generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'PasosPNG.js')
+                if daysPeriod == '7':
+                    text = "<b>Pasos totales %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalSteps, url)
+                else:
+                    text = text +  "<b>Pasos totales %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalSteps, url)
                 log.info("[%d] Se envia mensaje al usuario 'Pasos totales del dia: %d'" %(cid, totalSteps))
-                generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'PasosPNG.js')
+
 
                 send_image(cid, 'Pasos.png')
                 bot.send_message(cid, text, parse_mode="HTML")
@@ -367,9 +372,13 @@ def calories(cid, daysPeriod):
                     totalCalories = totalCalories + calories_count
                     text = text + "<i>%d cal. (%s - %s)</i>\n" \
                                   % (calories_count, startTimeDate.strftime('%H:%M'), endTimeDate.strftime('%H:%M del día %d-%m-%Y'))
-                text = text +  "<b>Calorias totales consumidas %s: %d</b>" %(text_totales, totalCalories)
+                url = generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'CaloriasPNG.js')
+                if daysPeriod == '7':
+                    text = "<b>Calorias totales consumidas %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalCalories, url)
+                else:
+                    text = text + "<b>Calorias totales consumidas %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalCalories, url)
                 log.info("[%d] Se envia mensaje al usuario 'Calorias totales consumidas hoy: %d'" %(cid, totalCalories))
-                generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'CaloriasPNG.js')
+
                 send_image(cid, 'Calorias.png')
                 bot.send_message(cid, text,parse_mode="HTML")
             else:
@@ -588,13 +597,14 @@ def activity(cid, daysPeriod):
                     #              "(Se acostó a las %sh y se levantó a las %sh)" \
                     #              %(text_totales, hours, minutes, startTimeDate_sleep.strftime("%H:%M"), endTimeDate_sleep.strftime("%H:%M"))
                     #text = text + restTime + lightSleepTime + deepSleepTime +  awakeTime
+
                     text = text + lightSleepTime + deepSleepTime +  awakeTime
                     log.info("[%d] Se envia mensaje al usuario '%s'" % (cid, text))
 
                 else:
                     print "ligero y profundo = 0"
-
-                generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'ActividadPNG.js')
+                url = generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'ActividadPNG.js')
+                text = text + "\n\nPuede ver la gráfica dinámica en:\n\n%s" %(url)
                 send_image(cid, 'Actividad.png')
                 bot.send_message(cid, text, parse_mode="HTML")
 
