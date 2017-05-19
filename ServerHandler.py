@@ -20,7 +20,7 @@ import requests.packages.urllib3
 requests.packages.urllib3.disable_warnings()
 
 
-WEBHOOKURL = "https://mibandbot.myddns.me"
+WEBHOOKURL = ""
 WEBHOOKPORT = "8443"
 WEBHOOKCERTPATH = "/usr/lib64/python2.7/site-packages/mibandbot/webhookutiles/webhook.pem"
 URL = WEBHOOKURL+":"+WEBHOOKPORT+"/"
