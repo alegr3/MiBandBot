@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# This is a simple echo bot using decorators and webhook with flask
-# It echoes any incoming text messages and does not use the polling method.
+# This is an activity bot using decorators and webhook with flask
 import os
 import re
 import sys
@@ -24,7 +23,7 @@ import logging
 API_TOKEN = '' # Telegram Bot's Token (fill this value with your own token)
 
 WEBHOOK_HOST = '' # Fill with a the Server FQDN that is the same FQDN used to generate SSL certificates
-WEBHOOK_PORT = 8443  # 443, 80, 88 or 8443 (port need to be 'open')
+WEBHOOK_PORT =   # 443, 80, 88 or 8443 (port need to be 'open')
 # In some VPS you may need to put here the IP addr
 WEBHOOK_LISTEN = '0.0.0.0' # Change to 0.0.0.0 in Virtual Machines
 
@@ -59,7 +58,7 @@ CLIENT_SECRETS = 'client_secrets_web.json'
 OAUTH_SCOPE = ['https://www.googleapis.com/auth/fitness.activity.read','https://www.googleapis.com/auth/fitness.body.read']
 
 # IP where the OAuth Server sends the code to authenticate a Google Account (A HTTP Server in our server that is waiting for the code)
-REDIRECT_URI = 'http://mibandbot.myddns.me:8088/'
+REDIRECT_URI = '' # Fill with your redirect server URI
 
 # DataSource for Steps
 DATA_SOURCE_STEP = "raw:com.google.step_count.delta:com.xiaomi.hm.health:"
@@ -123,17 +122,17 @@ def json_to_logstash(chat_id, hourStart, dateStart, hourEnd, dateEnd, fitness_ty
     print data
 
     msg = {'@message': data, '@tags': ['python']}
-    print msg
+    #print msg
 
     try:
-        print "llego al socket.socket"
+        #print "llego al socket.socket"
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     except socket.error, msg:
         print ("[ERROR] %s\n" % msg[1])
 
     try:
-        print "llego al sock.connect"
-        print "%s:%s" %(LOGSTASH_HOST, LOGSTASH_PORT)
+        #print "llego al sock.connect"
+        #print "%s:%s" %(LOGSTASH_HOST, LOGSTASH_PORT)
         sock.connect((LOGSTASH_HOST, LOGSTASH_PORT))
     except socket.error, msg:
         print ("[ERROR] %s\n" % msg[1])
@@ -143,18 +142,15 @@ def json_to_logstash(chat_id, hourStart, dateStart, hourEnd, dateEnd, fitness_ty
 
 # Method that generates an image from Kibana (Steps, Calories or Activity)
 def generateImageFromKibana(chat_id, startTimestamp, endTimestamp, jsFile):
-    print "entro a generar imagen"
+    print "generando imagen"
     ip = "mibandbot.myddns.me"
     print "start: %s" %(str(startTimestamp))
     print "end: %s" %(str(endTimestamp))
-    #startTimestamp = "2017-02-27T14:24:08Z"
-    #endTimestamp = "2017-03-01T18:46:38Z"
     chat_id = "pacient/" + str(chat_id)
-    print chat_id
+    #print chat_id
     url = re.escape("http://" + ip + "/app/kibana#/dashboard/Mi-Band-Dashboard?_g=(refreshInterval:(display:Off,pause:!f,value:0),time:(from:'" + str(startTimestamp) + "',mode:quick,to:'" + str(endTimestamp) + "'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:tbot_test,key:subject,negate:!f,value:'" + str(chat_id) + "'),query:(match:(subject:(query:" + str(chat_id) + ",type:phrase))))),options:(darkTheme:!f),panels:!((col:1,id:Mi-Band-Pasos,panelIndex:1,row:1,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Calorias,panelIndex:2,row:5,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Actividad,panelIndex:3,row:9,size_x:12,size_y:4,type:visualization)),query:(query_string:(analyze_wildcard:!t,query:'*')),title:'Mi%20Band%20Dashboard',uiState:(P-1:(vis:(legendOpen:!f)),P-2:(vis:(legendOpen:!f)),P-3:(vis:(legendOpen:!f))),vis:(aggs:!((params:(field:chat_id,orderBy:'2',size:20),schema:segment,type:terms),(id:'2',schema:metric,type:count)),type:histogram))&indexPattern=tbot_test&type=histogram")
     string_url = "http://" + ip + "/app/kibana#/dashboard/Mi-Band-Dashboard?_g=(refreshInterval:(display:Off,pause:!f,value:0),time:(from:'" + str(startTimestamp) + "',mode:quick,to:'" + str(endTimestamp) + "'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:tbot_test,key:subject,negate:!f,value:'" + str(chat_id) + "'),query:(match:(subject:(query:" + str(chat_id) + ",type:phrase))))),options:(darkTheme:!f),panels:!((col:1,id:Mi-Band-Pasos,panelIndex:1,row:1,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Calorias,panelIndex:2,row:5,size_x:12,size_y:4,type:visualization),(col:1,id:Mi-Band-Actividad,panelIndex:3,row:9,size_x:12,size_y:4,type:visualization)),query:(query_string:(analyze_wildcard:!t,query:'*')),title:'Mi%20Band%20Dashboard',uiState:(P-1:(vis:(legendOpen:!f)),P-2:(vis:(legendOpen:!f)),P-3:(vis:(legendOpen:!f))),vis:(aggs:!((params:(field:chat_id,orderBy:'2',size:20),schema:segment,type:terms),(id:'2',schema:metric,type:count)),type:histogram))&indexPattern=tbot_test&type=histogram"
     phamtonjs = 'phantomjs ' +jsFile+ ' ' + url
-    #print phamtonjs
     os.system(phamtonjs)
     print "imagen generada"
     return string_url
@@ -168,25 +164,19 @@ def diff_time(startTimeDate, endTimeDate):
     minutes = float(minutes) / 60.0 - float(hours)
     minutes = int(minutes * 60)
 
-# ACTUALIZACIÓN 5 MAY 2007
-#
+# Functions that retrieves steps, calories and acitivy from Google Database
 def steps(cid, daysPeriod):
-    global log
+    global fitness_service,log
     totalSteps = 0
     text = ''
     http = httplib2.Http()
     startingDay = int(daysPeriod)*86400
     startTimeNano = int((time.time() - startingDay) * 1e9)
-    #print startTimeNano
     startTS = datetime.fromtimestamp(startTimeNano // 1000000000)
-    #print startTS
     startTimeStamp = startTS.strftime('%Y-%m-%dT%H:%M:%SZ')
-    #print startTimeStamp
     endTimeNano = int((time.time() + 3600) * 1e9)
-    #print endTimeNano
     endTS = datetime.fromtimestamp(endTimeNano // 1000000000)
     endTimeStamp = endTS.strftime('%Y-%m-%dT%H:%M:%SZ')
-    #print endTimeStamp
     storage = Storage("%s%dcredentials.json" % (CREDENTIALS_PATH, cid))
     credentials = storage.get()
     print "las credenciales son: " + str(credentials)
@@ -216,6 +206,8 @@ def steps(cid, daysPeriod):
     else:
         try:
             http_auth = credentials.authorize(http)
+            #print credentials
+            #print http_auth
             fitness_service = build('fitness', 'v1', http=http_auth)
             if daysPeriod == '1':
                 text_totales = 'del dia'
@@ -224,6 +216,7 @@ def steps(cid, daysPeriod):
             elif daysPeriod == '7':
                 text_totales = 'de la última semana'
             dataSetId = getDataSetId(daysPeriod)
+            print dataSetId
             googleData = fitness_service.users().dataSources().datasets().get(userId='me',
                                                                               dataSourceId=DATA_SOURCE_STEP,
                                                                               datasetId=dataSetId).execute()
@@ -233,7 +226,7 @@ def steps(cid, daysPeriod):
             dataSets = googleData.get('point')
             if dataSets:
                 for dataSet in dataSets:
-                    print dataSet
+                    #print dataSet
                     step_value = dataSet['value']
                     start_value = dataSet['startTimeNanos']
                     startValue_int = int(start_value) + 3600*1e9
@@ -262,7 +255,7 @@ def steps(cid, daysPeriod):
                 if daysPeriod == '7':
                     text = "<b>Pasos totales %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalSteps, url)
                 else:
-                    text = text +  "<b>Pasos totales %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalSteps, url)
+                    text = text +  "<b>Pasos totales %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n%s" %(text_totales, totalSteps, url)
                 log.info("[%d] Se envia mensaje al usuario 'Pasos totales del dia: %d'" %(cid, totalSteps))
 
 
@@ -270,30 +263,21 @@ def steps(cid, daysPeriod):
                 bot.send_message(cid, text, parse_mode="HTML")
 
             else:
-                print startTimeStamp
-                #generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'PasosPNG.js')
                 print "[%d] No hay información de dataSet disponible." %(cid)
                 text = "No hay información de pasos disponible hoy."
                 log.info('[%d] ' %(cid) + text)
-                #generateImageFromKibana(cid, startTimeDate, endTimeDate, 'PasosPNG.png')
-
-                #send_image(cid, 'Pasos.png')
                 bot.send_message(cid, text)
-
-                #time.sleep(5)
 
         except Exception as e:
             print "[%d] Ha ocurrido un error: " %(cid, str(e))
             log.error('[%d] ' %(cid, str(e)))
 
-## ACTUALIZACIÓN 7 MAYO
 def calories(cid, daysPeriod):
     global fitness_service, log
     text = ''
     dataSets = None
     totalCalories = 0
     http = httplib2.Http()
-    #cid = message.chat.id  # Guardamos el ID de la conversacion para poder responder.
     startingDay = int(daysPeriod)*86400
     startTimeNano = int((time.time() - startingDay) * 1e9)
     startTS = datetime.fromtimestamp(startTimeNano // 1000000000)
@@ -356,7 +340,6 @@ def calories(cid, daysPeriod):
                     endTimeDate = datetime.fromtimestamp(endValue_int // 1000000000)
                     calories = calories_value.pop(0)
                     calories_count = calories['fpVal']
-                    ##
                     diff = endValue_int - startValue_int
                     duration = int((diff / (1e9 * 60)))
                     print "duration: %d" % (duration)
@@ -368,7 +351,6 @@ def calories(cid, daysPeriod):
                                      'calorias',
                                      calories_count,
                                      duration)
-                    ##
                     totalCalories = totalCalories + calories_count
                     text = text + "<i>%d cal. (%s - %s)</i>\n" \
                                   % (calories_count, startTimeDate.strftime('%H:%M'), endTimeDate.strftime('%H:%M del día %d-%m-%Y'))
@@ -376,7 +358,7 @@ def calories(cid, daysPeriod):
                 if daysPeriod == '7':
                     text = "<b>Calorias totales consumidas %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalCalories, url)
                 else:
-                    text = text + "<b>Calorias totales consumidas %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n\n%s" %(text_totales, totalCalories, url)
+                    text = text + "<b>Calorias totales consumidas %s: %d</b>\n\nPuede ver la gráfica dinámica en:\n%s" %(text_totales, totalCalories, url)
                 log.info("[%d] Se envia mensaje al usuario 'Calorias totales consumidas hoy: %d'" %(cid, totalCalories))
 
                 send_image(cid, 'Calorias.png')
@@ -386,6 +368,7 @@ def calories(cid, daysPeriod):
                 text = "No hay información de calorías disponible hoy."
                 log.info("[%d] Se envia mensaje al usuario 'No hay informacion de calorias disponible hoy'" %(cid))
                 bot.send_message(cid, text)
+
         except Exception as e:
             print "[%d] Ha ocurrido un error: %s" %(cid, str(e))
             log.error('[%d] %s" ' %(cid, str(e)))
@@ -408,7 +391,6 @@ def activity(cid, daysPeriod):
     endTimeNano = int((time.time() + 3600) * 1e9)
     endTS = datetime.fromtimestamp(endTimeNano // 1000000000)
     endTimeStamp = endTS.strftime('%Y-%m-%dT%H:%M:%SZ')
-    #cid = message.chat.id  # Guardamos el ID de la conversacion para poder responder.
 
     storage = Storage("%s%dcredentials.json" % (CREDENTIALS_PATH, cid))
     credentials = storage.get()
@@ -453,14 +435,14 @@ def activity(cid, daysPeriod):
                                                                               dataSourceId=DATA_SOURCE_SLEEP,
                                                                               datasetId=dataSetId).execute()
             dataSets = googleData.get('point')
-            print googleData
+            #print googleData
             if dataSets:
                 for dataSet in dataSets:
                     tipo = ""
                     sleep_value = dataSet['value']
-                    start_value_segmento = dataSet['startTimeNanos'] ##
-                    startValue_int = int(start_value_segmento) + 3600 * 1e9 ##
-                    startTimeDate_segmento = datetime.fromtimestamp(startValue_int // 1000000000) ##
+                    start_value_segmento = dataSet['startTimeNanos']
+                    startValue_int = int(start_value_segmento) + 3600 * 1e9
+                    startTimeDate_segmento = datetime.fromtimestamp(startValue_int // 1000000000)
                     sleep_data = sleep_value.pop(0)
                     sleep_count = sleep_data['intVal']
                     if sleep_count == 7:
@@ -551,11 +533,8 @@ def activity(cid, daysPeriod):
                                          10,
                                          duration)
 
-                    print 'llego a antes del diff_segment'
                     diff_segment_date = endTimeDate_segmento - startTimeDate_segmento
-                    print "diff_segment " +str(diff_segment_date)
                     seconds = diff_segment_date.total_seconds()
-                    print seconds
                     minutes = int(seconds) / 60
                     hours = minutes / 60
                     minutes = float(minutes) / 60.0 - float(hours)
@@ -567,9 +546,8 @@ def activity(cid, daysPeriod):
                     text = text + "<i>Segmento de %s: %d:%sh </i>\n " \
                                   "(%s - %s)\n\n" %(tipo, hours, minutes, startTimeDate_segmento.strftime('%H:%M'), endTimeDate_segmento.strftime('%H:%M del día %d-%m-%Y'))
 
-                    print text
-                print 'llego a antes del ligero/profundo sueño'
-                ###
+                    #print text
+
                 if end_sleep_value_ligero != 0 and end_sleep_value_profundo != 0:
                     print "ligero: " + str(end_sleep_value_ligero) + " y profundo: " + str(end_sleep_value_profundo)
 
@@ -597,14 +575,16 @@ def activity(cid, daysPeriod):
                     #              "(Se acostó a las %sh y se levantó a las %sh)" \
                     #              %(text_totales, hours, minutes, startTimeDate_sleep.strftime("%H:%M"), endTimeDate_sleep.strftime("%H:%M"))
                     #text = text + restTime + lightSleepTime + deepSleepTime +  awakeTime
-
-                    text = text + lightSleepTime + deepSleepTime +  awakeTime
+                    if daysPeriod == '7':
+                    	text = lightSleepTime + deepSleepTime +  awakeTime
+                    else:
+                    	text = text + lightSleepTime + deepSleepTime +  awakeTime
                     log.info("[%d] Se envia mensaje al usuario '%s'" % (cid, text))
 
                 else:
                     print "ligero y profundo = 0"
                 url = generateImageFromKibana(cid, startTimeStamp, endTimeStamp, 'ActividadPNG.js')
-                text = text + "\n\nPuede ver la gráfica dinámica en:\n\n%s" %(url)
+                text = text + "\n\nPuede ver la gráfica dinámica en:\n%s" %(url)
                 send_image(cid, 'Actividad.png')
                 bot.send_message(cid, text, parse_mode="HTML")
 
@@ -642,7 +622,7 @@ def webhook():
         #log.error(e)
         return ''
 
-# Tratamiendo de los comandos '/start' y '/help'
+# Handle '/start' and '/help' commands
 @bot.message_handler(commands=['help', 'start'])
 def send_welcome(message):
     global fitness_service, credentials, http, cid, log
@@ -655,21 +635,12 @@ def send_welcome(message):
     log.info('[%d] El usuario acaba de iniciar el bot' %(cid))
     bot.send_message(cid, welcome_text + str(auth_uri))
 
-# Handle '/actividad' & '/actividad_ultimo_dia'
-@bot.message_handler(commands=['comandos'])
-def retrieve_commands(message):
-    cid = message.chat.id
-    print "llego a commands"
-    text = "Los comandos disponibles son:\n/pasos\n/pasos_ultimo_dia\n/calorias\n/calorias_ultimo_dia\n/actividad_ultimo_dia"
-    print text
-    bot.send_message(cid, text)
-
-# TEST 12-04-2017
+# Send image to the user
 def send_image(cid, imageType):
     photo = open('/usr/lib64/python2.7/site-packages/mibandbot/'+imageType, 'rb')
     bot.send_photo(cid, photo)
 
-# Handle '/actividad' & '/actividad_ultimo_dia'
+# Handle '/teclado' to send custom keyboard
 @bot.message_handler(commands=['teclado'])
 def retrieve_commands(message):
     cid = message.chat.id
@@ -677,8 +648,8 @@ def retrieve_commands(message):
     markup.add(u'\U0001F463' 'Pasos', u'\U00002764' 'Calorias', u'\U0001F4A4' 'Actividad')
     markup.row(u'\U00002753' 'Ayuda')
     bot.send_message(cid, "Custom Keyboard:", reply_markup=markup)
-## END TEST
 
+# Handle the custom keyboard steps, calories and activity buttons
 @bot.message_handler(func=lambda message: True, content_types=['text'], regexp='Pasos')
 def echo_message(message):
     cid = message.chat.id
@@ -715,41 +686,62 @@ def echo_message(message):
     bot.send_message(cid, "¿De qué periodo quiere obtener la actividad?:", reply_markup=keyboard)
     print "[" + str(cid) + "]" + 'Actividad'
 
+@bot.message_handler(func=lambda message: True, content_types=['text'], regexp='Ayuda')
+def echo_message(message):
+    cid = message.chat.id
+    bot.send_message(cid, "Ayuda sobre el funcionamiento de la aplicación:\n\n-----------------------------------------------------------------------------------------------\n\n<b> · PASOS:</b>\n\n  Envía una gráfica con los pasos registrados por el usuario.\n  El eje de abscisas indica el intervalo temporal en el que se muestran los pasos mientras que el eje de ordenadas indica la cantidad de pasos realizados\n\n-----------------------------------------------------------------------------------------------\n\n<b>· CALORÍAS:</b>\n\n  Envía una gráfica con las calorías registradas por el usuario.\n  El eje de abscisas indica el intervalo temporal en el que se muestran las calorías mientras que el eje de ordenadas indica la cantidad de calorías consumidas\n\n-----------------------------------------------------------------------------------------------\n\n<b> · ACTIVIDAD</b>:\n\n  Envía una gráfica con la actividad registrada por el usuario.\n  El eje de abscisas indica el intervalo temporal en el que se muestra la actividad mientras que el eje de ordenadas indica el tipo de actividad realizada correspondiéndo un cada actividad con un valor determinado:\n\n  <b>· Despierto:</b> corresponde a un valor 10 en la gráfica.\n  <b>· Andando:</b> corresponde a un valor 30 en la gráfica.\n  <b>· Sueño ligero:</b> corresponde a un valor 90 en la gráfica.\n  <b>· Sueño profundo:</b> corresponde a un valor 100 en la gráfica.\n\n-----------------------------------------------------------------------------------------------", parse_mode="HTML")
+    print "[" + str(cid) + "]" + 'Ayuda'
+
 @bot.callback_query_handler(func=lambda call: True)
 def callbacks(call):
     cid = call.message.chat.id
-    bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
     period = call.data.split(' ')
     if call.data.startswith('Pasos'):
         if period[1] == "1":
+	    bot.send_message(cid, "Ha elegido Pasos del último día")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             steps(cid, period[1])
-            #send_image(cid, 'Pasos.png')
         elif period[1] == "2":
+            bot.send_message(cid, "Ha elegido Pasos de los dos últimos días")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             steps(cid, period[1])
-            #send_image(cid, 'Pasos.png')
         elif period[1] == "7":
+            bot.send_message(cid, "Ha elegido Pasos de la última semana")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             steps(cid, period[1])
-        print "llego aqui"
         time.sleep(2)
         os.system('sudo rm Pasos.png')
+
     elif call.data.startswith('Calorias'):
         if period[1] == "1":
+            bot.send_message(cid, "Ha elegido Calorías del último día")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             calories(cid, period[1])
-            #bot.send_message(cid, "1")
         elif period[1] == "2":
+            bot.send_message(cid, "Ha elegido Calorías de los dos últimos días")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             calories(cid, period[1])
-            #bot.send_message(cid, "2")
         elif period[1] == "7":
+            bot.send_message(cid, "Ha elegido Calorías de la última semana")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             calories(cid, period[1])
-            #bot.send_message(cid, "3")
         time.sleep(2)
         os.system('sudo rm Calorias.png')
+
     elif call.data.startswith('Actividad'):
         if period[1] == "1":
+            bot.send_message(cid, "Ha elegido Actividad del último día")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
+            print period[1]
+            print "actividad dia 1"
             activity(cid, period[1])
         elif period[1] == "2":
+            bot.send_message(cid, "Ha elegido Actividad de los dos últimos días")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             activity(cid, period[1])
         elif period[1] == "7":
+            bot.send_message(cid, "Ha elegido Actividad de la última semana")
+            bot.send_message(cid, 'Espera unos segundos mientras se genera la gráfica:')
             activity(cid, period[1])
         time.sleep(2)
         os.system('sudo rm Actividad.png')
@@ -759,7 +751,7 @@ def callbacks(call):
 def echo_message(message):
     cid = message.chat.id
     print "[" + str(cid) + "]" + message.text
-    bot.reply_to(message, message.text)
+    bot.send_message(message, "No es un comando o palabra válida para el bot.\n\nPuede probar '/start' para registrarse o '/teclado' para obtener el teclado que permite utilizar la aplicación.")
 
 # Remove webhook, it fails sometimes the set if there is a previous webhook
 bot.remove_webhook()
